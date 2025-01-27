@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shooting Balloon Game</title>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      background-color: black;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .game-container {
+      position: relative;
+      width: 90%;
+      max-width: 600px;
+      aspect-ratio: 3 / 2;
+      background-color: #111;
+      border: 2px solid #00ff00;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    #pointer {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      background-color: rgba(255, 0, 0, 0.8);
+      border-radius: 50%;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+    }
+    .score {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      font-size: 18px;
+      color: white;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <div class="score" id="score">Score: 0</div>
+  <div class="game-container">
+    <canvas id="gameCanvas"></canvas>
+    <div id="pointer"></div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const pointer = document.getElementById('pointer');
+    const scoreDisplay = document.getElementById('score');
+
+    canvas.width = canvas.parentElement.clientWidth;
+    canvas.height = canvas.parentElement.clientHeight;
+
+    let score = 0;
+    let balloons = [];
+    const bullets = [];
+    const bulletSpeed = 5;
+
+    // Initialize MediaPipe Hands
+    const hands = new Hands({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+    });
+
+    hands.setOptions({
+      maxNumHands: 1,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.8,
+      minTrackingConfidence: 0.8,
+    });
+
+    const videoElement = document.createElement('video');
+    const camera = new Camera(videoElement, {
+      onFrame: async () => {
+        await hands.send({ image: videoElement });
+      },
+      width: 1280,
+      height: 720,
+    });
+    camera.start();
+
+    hands.onResults((results) => {
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const landmarks = results.multiHandLandmarks[0];
+        const pointerX = landmarks[8].x * canvas.width;
+        const pointerY = landmarks[8].y * canvas.height;
+
+        pointer.style.left = `${pointerX}px`;
+        pointer.style.top = `${pointerY}px`;
+
+        bullets.push({ x: pointerX, y: canvas.height - 30 });
+      }
+    });
+
+    function spawnBalloon() {
+      const balloon = {
+        x: Math.random() * canvas.width,
+        y: canvas.height,
+        radius: 20 + Math.random() * 20,
+        speed: 2,
+        color: `hsl(${Math.random() * 360}, 100%, 50%)`,
+      };
+      balloons.push(balloon);
+    }
+
+    function drawBalloons() {
+      balloons.forEach((balloon, index) => {
+        ctx.beginPath();
+        ctx.arc(balloon.x, balloon.y, balloon.radius, 0, Math.PI * 2);
+        ctx.fillStyle = balloon.color;
+        ctx.fill();
+        ctx.closePath();
+
+        balloon.y -= balloon.speed;
+
+        // Remove balloon if it goes off-screen
+        if (balloon.y + balloon.radius < 0) {
+          balloons.splice(index, 1);
+        }
+      });
+    }
+
+    function drawBullets() {
+      bullets.forEach((bullet, index) => {
+        ctx.fillStyle = 'yellow';
+        ctx.fillRect(bullet.x - 2.5, bullet.y, 5, 10);
+        bullet.y -= bulletSpeed;
+
+        // Remove bullet if it goes off-screen
+        if (bullet.y < 0) {
+          bullets.splice(index, 1);
+        }
+      });
+    }
+
+    function checkCollision() {
+      bullets.forEach((bullet, bulletIndex) => {
+        balloons.forEach((balloon, balloonIndex) => {
+          const distance = Math.hypot(bullet.x - balloon.x, bullet.y - balloon.y);
+
+          if (distance < balloon.radius) {
+            balloons.splice(balloonIndex, 1);
+            bullets.splice(bulletIndex, 1);
+            score += 10;
+          }
+        });
+      });
+    }
+
+    function drawScore() {
+      scoreDisplay.textContent = `Score: ${score}`;
+    }
+
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      drawBalloons();
+      drawBullets();
+      checkCollision();
+      drawScore();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    setInterval(spawnBalloon, 1000);
+    gameLoop();
+  </script>
+</body>
+</html>

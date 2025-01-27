@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Snake Game</title>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      background-color: black;
+      color: white;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .game-container {
+      position: relative;
+      width: 90%;
+      max-width: 600px;
+      aspect-ratio: 3 / 2;
+      background-color: #111;
+      border: 2px solid #00ff00;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+    #pointer {
+      position: absolute;
+      width: 15px;
+      height: 15px;
+      background-color: rgba(255, 0, 0, 0.8);
+      border-radius: 50%;
+      pointer-events: none;
+      transform: translate(-50%, -50%);
+    }
+    .timer {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      font-size: 18px;
+      color: white;
+      z-index: 10;
+    }
+    .score {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      font-size: 18px;
+      color: white;
+      z-index: 10;
+    }
+    .popup {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background-color: #222;
+      color: white;
+      padding: 20px;
+      border: 2px solid #00ff00;
+      border-radius: 10px;
+      z-index: 10;
+      text-align: center;
+    }
+    .popup button {
+      margin-top: 10px;
+      padding: 10px 20px;
+      background-color: #00ff00;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      color: black;
+      font-size: 16px;
+    }
+    .popup button:hover {
+      background-color: #00cc00;
+    }
+  </style>
+</head>
+<body>
+  <div class="timer" id="timer">Time: 0:00</div>
+  <div class="score" id="score">Score: 0</div>
+  <div class="game-container">
+    <canvas id="gameCanvas"></canvas>
+    <div id="pointer"></div>
+  </div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const pointer = document.getElementById('pointer');
+    const timerDisplay = document.getElementById('timer');
+    const scoreDisplay = document.getElementById('score');
+
+    canvas.width = canvas.parentElement.clientWidth;
+    canvas.height = canvas.parentElement.clientHeight;
+
+    let snake = [{ x: 150, y: 150 }];
+    const snakeSize = 20;
+    let food = { x: Math.random() * (canvas.width - snakeSize), y: Math.random() * (canvas.height - snakeSize) };
+    let score = 0;
+    let timeLeft = 60; // 1 minute
+    let gameInterval, timerInterval;
+
+    // Initialize MediaPipe Hands
+    const hands = new Hands({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+    });
+
+    hands.setOptions({
+      maxNumHands: 1,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.8,
+      minTrackingConfidence: 0.8,
+    });
+
+    const videoElement = document.createElement('video');
+    const camera = new Camera(videoElement, {
+      onFrame: async () => {
+        await hands.send({ image: videoElement });
+      },
+      width: 1280,
+      height: 720,
+    });
+    camera.start();
+
+    hands.onResults((results) => {
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const landmarks = results.multiHandLandmarks[0];
+        const pointerX = landmarks[8].x * canvas.width;
+        const pointerY = landmarks[8].y * canvas.height;
+
+        pointer.style.left = `${pointerX}px`;
+        pointer.style.top = `${pointerY}px`;
+      }
+    });
+
+    function drawSnake() {
+      ctx.fillStyle = 'green';
+      snake.forEach((segment) => {
+        ctx.fillRect(segment.x, segment.y, snakeSize, snakeSize);
+      });
+    }
+
+    function drawFood() {
+      ctx.fillStyle = 'red';
+      ctx.fillRect(food.x, food.y, snakeSize, snakeSize);
+    }
+
+    function moveSnake() {
+      const head = { x: snake[0].x, y: snake[0].y };
+      head.x += (pointer.offsetLeft - head.x) * 0.1;
+      head.y += (pointer.offsetTop - head.y) * 0.1;
+
+      snake.unshift(head);
+      if (
+        Math.abs(head.x - food.x) < snakeSize &&
+        Math.abs(head.y - food.y) < snakeSize
+      ) {
+        score += 10;
+        food = { x: Math.random() * (canvas.width - snakeSize), y: Math.random() * (canvas.height - snakeSize) };
+      } else {
+        snake.pop();
+      }
+
+      if (
+        head.x < 0 ||
+        head.x > canvas.width ||
+        head.y < 0 ||
+        head.y > canvas.height ||
+        snake.some((segment, index) => index !== 0 && head.x === segment.x && head.y === segment.y)
+      ) {
+        endGame();
+      }
+    }
+
+    function updateTimer() {
+      if (timeLeft <= 0) {
+        endGame();
+      } else {
+        timeLeft--;
+        const minutes = Math.floor(timeLeft / 60);
+        const seconds = timeLeft % 60;
+        timerDisplay.textContent = `Time: ${minutes}:${seconds.toString().padStart(2, '0')}`;
+      }
+    }
+
+    function endGame() {
+      clearInterval(gameInterval);
+      clearInterval(timerInterval);
+      const popup = document.createElement('div');
+      popup.classList.add('popup');
+      popup.innerHTML = `<h2>Game Over</h2><p>Your Score: ${score}</p><button onclick="restartGame()">Restart</button>`;
+      document.body.appendChild(popup);
+    }
+
+    function restartGame() {
+      document.location.reload();
+    }
+
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawSnake();
+      drawFood();
+      moveSnake();
+      scoreDisplay.textContent = `Score: ${score}`;
+    }
+
+    gameInterval = setInterval(gameLoop, 100);
+    timerInterval = setInterval(updateTimer, 1000);
+  </script>
+</body>
+</html>

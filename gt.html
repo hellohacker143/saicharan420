@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Gesture-Controlled Pong Game</title>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: black;
+      color: white;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      overflow: hidden;
+    }
+
+    #gameCanvas {
+      background-color: #111;
+      border: 2px solid white;
+    }
+
+    .score {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: white;
+      font-size: 24px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="score" id="score">Player: 0 | AI: 0</div>
+  <canvas id="gameCanvas" width="800" height="600"></canvas>
+
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    // Game variables
+    const paddleWidth = 10, paddleHeight = 100;
+    let playerY = canvas.height / 2 - paddleHeight / 2;
+    const aiPaddleY = canvas.height / 2 - paddleHeight / 2;
+    let ballX = canvas.width / 2, ballY = canvas.height / 2;
+    let ballSpeedX = 5, ballSpeedY = 3;
+    let playerScore = 0, aiScore = 0;
+
+    // MediaPipe Hands setup
+    const hands = new Hands({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+    });
+
+    hands.setOptions({
+      maxNumHands: 1,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.8,
+      minTrackingConfidence: 0.8,
+    });
+
+    const videoElement = document.createElement("video");
+    const camera = new Camera(videoElement, {
+      onFrame: async () => {
+        await hands.send({ image: videoElement });
+      },
+      width: 1280,
+      height: 720,
+    });
+    camera.start();
+
+    hands.onResults((results) => {
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const landmarks = results.multiHandLandmarks[0];
+        const pointerY = landmarks[8].y * canvas.height;
+        playerY = Math.max(0, Math.min(pointerY - paddleHeight / 2, canvas.height - paddleHeight));
+      }
+    });
+
+    // Draw paddles
+    function drawPaddle(x, y) {
+      ctx.fillStyle = "white";
+      ctx.fillRect(x, y, paddleWidth, paddleHeight);
+    }
+
+    // Draw ball
+    function drawBall() {
+      ctx.fillStyle = "red";
+      ctx.beginPath();
+      ctx.arc(ballX, ballY, 10, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // Move the ball
+    function moveBall() {
+      ballX += ballSpeedX;
+      ballY += ballSpeedY;
+
+      // Ball collision with top and bottom
+      if (ballY <= 0 || ballY >= canvas.height) {
+        ballSpeedY *= -1;
+      }
+
+      // Ball collision with player paddle
+      if (ballX <= paddleWidth && ballY >= playerY && ballY <= playerY + paddleHeight) {
+        ballSpeedX *= -1;
+      }
+
+      // Ball collision with AI paddle
+      if (ballX >= canvas.width - paddleWidth &&
+          ballY >= aiPaddleY &&
+          ballY <= aiPaddleY + paddleHeight) {
+        ballSpeedX *= -1;
+      }
+
+      // Ball out of bounds
+      if (ballX < 0) {
+        aiScore++;
+        resetBall();
+      } else if (ballX > canvas.width) {
+        playerScore++;
+        resetBall();
+      }
+    }
+
+    // Move AI paddle
+    function moveAiPaddle() {
+      const aiCenter = aiPaddleY + paddleHeight / 2;
+      if (aiCenter < ballY - 35) {
+        aiPaddleY += 5;
+      } else if (aiCenter > ballY + 35) {
+        aiPaddleY -= 5;
+      }
+      aiPaddleY = Math.max(0, Math.min(aiPaddleY, canvas.height - paddleHeight));
+    }
+
+    // Reset ball position
+    function resetBall() {
+      ballX = canvas.width / 2;
+      ballY = canvas.height / 2;
+      ballSpeedX *= -1;
+    }
+
+    // Update score
+    function updateScore() {
+      const scoreDisplay = document.getElementById("score");
+      scoreDisplay.textContent = `Player: ${playerScore} | AI: ${aiScore}`;
+    }
+
+    // Game loop
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw paddles and ball
+      drawPaddle(0, playerY);
+      drawPaddle(canvas.width - paddleWidth, aiPaddleY);
+      drawBall();
+
+      // Move elements
+      moveBall();
+      moveAiPaddle();
+
+      // Update score
+      updateScore();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    gameLoop();
+  </script>
+</body>
+</html>

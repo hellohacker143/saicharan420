@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title> Game Interface</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #74ebd5, #acb6e5);
+      color: #333;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    h1 {
+      margin-bottom: 20px;
+      color: #fff;
+      font-weight: bold;
+      text-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    }
+
+    .game-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 20px;
+      width: 90%;
+      max-width: 800px;
+    }
+
+    .game-box {
+      width: 100%;
+      aspect-ratio: 1;
+      background: linear-gradient(135deg, #ff9a9e, #fad0c4);
+      border: 2px solid #fff;
+      border-radius: 15px;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      cursor: pointer;
+      transition: transform 0.3s, box-shadow 0.3s;
+      padding: 10px;
+    }
+
+    .game-box:hover {
+      transform: scale(1.05);
+      box-shadow: 0 8px 12px rgba(0, 0, 0, 0.2);
+    }
+
+    .game-box span {
+      color: #fff;
+      font-size: 14px;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .game-box button {
+      margin-top: auto;
+      padding: 8px 12px;
+      background-color: #28a745;
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background-color 0.3s;
+      align-self: flex-end;
+    }
+
+    .game-box button:hover {
+      background-color: #218838;
+    }
+
+    .popup {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.9);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+    }
+
+    .popup iframe {
+      width: 90%;
+      height: 90%;
+      border: none;
+      border-radius: 15px;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .popup .close-btn {
+      margin-top: 20px;
+      padding: 10px 20px;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .popup .close-btn:hover {
+      background-color: #218838;
+    }
+  </style>
+</head>
+<body>
+  <h1>Welcome to Virtual Web Page Game Interface</h1>
+
+  <div class="game-container">
+    <div class="game-box">
+      <span>snake game </span>
+      <button onclick="openPopup('C:/Users/Sai/Desktop/New folder/s.html')">Play</button>
+    </div>
+    <div class="game-box">
+      <span>Game 2</span>
+      <button onclick="openPopup('C:/Users/Sai/Desktop/New folder/s.html')">Play</button>
+    </div>
+    <div class="game-box">
+      <span>Balloon Game</span>
+      <button onclick="openPopup('C:/Users/Sai/Desktop/New folder/ballon gun.html')">Play</button>
+    </div>
+    <div class="game-box">
+      <span>Pong Game</span>
+      <button onclick="openPopup('C:/Users/Sai/Desktop/New folder/Pong Game.html')">Play</button>
+    </div>
+    <div class="game-box">
+      <span>Game 5</span>
+      <button onclick="openPopup('C:/Users/Sai/Desktop/New folder/s.html')">Play</button>
+    </div>
+    <div class="game-box">
+      <span>ABOUT THIS PAGE </span>
+      <button onclick="openPopup('C:/Users/Sai/Desktop/New folder/vir web.html')">Play</button>
+    </div>
+  </div>
+
+  <div class="popup" id="popup">
+    <iframe id="popupFrame" src=""></iframe>
+    <button class="close-btn" onclick="closePopup()">Close</button>
+  </div>
+
+  <script>
+    // Function to open the popup
+    function openPopup(url) {
+      const popup = document.getElementById('popup');
+      const popupFrame = document.getElementById('popupFrame');
+      popupFrame.src = url;
+      popup.style.display = 'flex';
+    }
+
+    // Function to close the popup
+    function closePopup() {
+      const popup = document.getElementById('popup');
+      const popupFrame = document.getElementById('popupFrame');
+      popupFrame.src = ''; // Clear the iframe src
+      popup.style.display = 'none';
+    }
+
+    // Ensure the popup is hidden on page refresh
+    window.onload = () => {
+      const popup = document.getElementById('popup');
+      const popupFrame = document.getElementById('popupFrame');
+      popup.style.display = 'none';
+      popupFrame.src = '';
+    };
+  </script>
+</body>
+</html>

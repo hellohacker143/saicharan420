@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pong Game with Speed Control</title>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js"></script>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(135deg, #74ebd5, #acb6e5);
+      color: white;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .header {
+      width: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+      padding: 10px 0;
+      text-align: center;
+      position: fixed;
+      top: 0;
+      z-index: 100;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 20px;
+      box-shadow: 0px 4px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    .header div {
+      color: white;
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .game-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      padding-top: 70px; /* Space for the header */
+    }
+
+    canvas {
+      border: 2px solid #fff;
+      border-radius: 10px;
+      background: #222;
+      max-width: 90%;
+      max-height: 70%;
+      width: auto;
+      height: auto;
+    }
+
+    .controls {
+      margin-top: 10px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .controls label {
+      font-size: 16px;
+    }
+
+    .controls input[type="range"] {
+      width: 150px;
+    }
+
+    video {
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div id="score">Score: 0</div>
+    <div id="timer">Time: 60</div>
+  </div>
+
+  <div class="game-container">
+    <canvas id="gameCanvas" width="500" height="500"></canvas>
+    <div class="controls">
+      <label for="speedControl">Ball Speed:</label>
+      <input type="range" id="speedControl" min="1" max="10" value="2" step="1">
+    </div>
+  </div>
+
+  <video id="webcam" autoplay playsinline></video>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreDisplay = document.getElementById('score');
+    const timerDisplay = document.getElementById('timer');
+    const speedControl = document.getElementById('speedControl');
+
+    let ball = {
+      x: canvas.width / 2,
+      y: canvas.height / 2,
+      radius: 10,
+      dx: 2,
+      dy: 2,
+      color: 'white',
+    };
+
+    let paddle = {
+      x: canvas.width / 2 - 50,
+      y: canvas.height - 20,
+      width: 100,
+      height: 10,
+      color: 'white',
+    };
+
+    let score = 0;
+    let timeLeft = 60;
+
+    // Update ball speed based on slider
+    speedControl.addEventListener('input', () => {
+      const speed = parseInt(speedControl.value);
+      ball.dx = Math.sign(ball.dx) * speed;
+      ball.dy = Math.sign(ball.dy) * speed;
+    });
+
+    // Draw ball
+    function drawBall() {
+      ctx.beginPath();
+      ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+      ctx.fillStyle = ball.color;
+      ctx.fill();
+      ctx.closePath();
+    }
+
+    // Draw paddle
+    function drawPaddle() {
+      ctx.fillStyle = paddle.color;
+      ctx.fillRect(paddle.x, paddle.y, paddle.width, paddle.height);
+    }
+
+    // Update ball position
+    function updateBall() {
+      ball.x += ball.dx;
+      ball.y += ball.dy;
+
+      // Bounce off walls
+      if (ball.x + ball.radius > canvas.width || ball.x - ball.radius < 0) {
+        ball.dx = -ball.dx;
+      }
+      if (ball.y - ball.radius < 0) {
+        ball.dy = -ball.dy;
+      }
+
+      // Bounce off paddle
+      if (
+        ball.y + ball.radius > paddle.y &&
+        ball.x > paddle.x &&
+        ball.x < paddle.x + paddle.width
+      ) {
+        ball.dy = -ball.dy;
+        score++;
+      }
+
+      // Reset if ball hits the bottom
+      if (ball.y + ball.radius > canvas.height) {
+        score = 0;
+        ball.x = canvas.width / 2;
+        ball.y = canvas.height / 2;
+        ball.dx = Math.sign(ball.dx) * parseInt(speedControl.value);
+        ball.dy = Math.sign(ball.dy) * parseInt(speedControl.value);
+      }
+
+      scoreDisplay.textContent = `Score: ${score}`;
+    }
+
+    // Timer
+    function startTimer() {
+      const timerInterval = setInterval(() => {
+        if (timeLeft > 0) {
+          timeLeft--;
+          timerDisplay.textContent = `Time: ${timeLeft}`;
+        } else {
+          clearInterval(timerInterval);
+          alert(`Game Over! Your score is ${score}`);
+          document.location.reload();
+        }
+      }, 1000);
+    }
+
+    // Game loop
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawBall();
+      drawPaddle();
+      updateBall();
+      requestAnimationFrame(gameLoop);
+    }
+
+    // MediaPipe Hands setup
+    const hands = new Hands({
+      locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`,
+    });
+
+    hands.setOptions({
+      maxNumHands: 1,
+      modelComplexity: 1,
+      minDetectionConfidence: 0.7,
+      minTrackingConfidence: 0.7,
+    });
+
+    const videoElement = document.getElementById('webcam');
+    const camera = new Camera(videoElement, {
+      onFrame: async () => {
+        await hands.send({ image: videoElement });
+      },
+      width: 640,
+      height: 480,
+    });
+    camera.start();
+
+    hands.onResults((results) => {
+      if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
+        const landmarks = results.multiHandLandmarks[0];
+        const indexFinger = landmarks[8]; // Index finger tip
+
+        // Map index finger x-coordinate to paddle position
+        paddle.x = indexFinger.x * canvas.width - paddle.width / 2;
+
+        // Ensure paddle stays within canvas bounds
+        if (paddle.x < 0) paddle.x = 0;
+        if (paddle.x + paddle.width > canvas.width) paddle.x = canvas.width - paddle.width;
+      }
+    });
+
+    startTimer();
+    gameLoop();
+  </script>
+</body>
+</html>
